@@ -24,11 +24,28 @@ export interface FacilitatorConfig {
   supportedNetworks?: string[];
 }
 
+export interface BasketItem {
+  id?: string;
+  name: string;
+  price: string;
+  quantity?: number;
+  tax?: string;
+  discount?: string;
+  metadata?: Record<string, any>;
+}
+
+export type Basket = BasketItem[];
+
 export interface RouteConfig {
   /**
    * Price for accessing this route (e.g., "$0.01")
    */
   price: string;
+
+  /**
+   * Optional basket of items for this route
+   */
+  basket?: Basket;
 
   /**
    * Additional configuration for the route

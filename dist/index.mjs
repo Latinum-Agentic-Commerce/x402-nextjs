@@ -1,5 +1,6 @@
 // src/middleware.ts
 import { paymentMiddleware as x402NextMiddleware } from "x402-next";
+import { NextResponse } from "next/server";
 function paymentMiddleware(address, routes, config) {
   const {
     facilitator = {},
@@ -31,9 +32,9 @@ function paymentMiddleware(address, routes, config) {
     const host = req.headers.get("host") || "localhost:3000";
     return `${protocol}://${host}${basePath}`;
   };
-  return (req) => {
+  return async (req) => {
     const facilitatorUrl = getFacilitatorUrl(req);
-    return x402NextMiddleware(
+    const response = await x402NextMiddleware(
       address,
       normalizedRoutes,
       { url: facilitatorUrl },
@@ -44,6 +45,30 @@ function paymentMiddleware(address, routes, config) {
         sessionTokenEndpoint
       }
     )(req);
+    if (response && response.status === 402) {
+      const pathname = req.nextUrl.pathname;
+      const routeConfig = normalizedRoutes[pathname];
+      if (routeConfig && routeConfig.basket) {
+        try {
+          const data = await response.json();
+          data.basket = routeConfig.basket;
+          if (data.accepts && Array.isArray(data.accepts)) {
+            data.accepts.forEach((accept) => {
+              if (accept.extra) {
+                accept.extra.basket = routeConfig.basket;
+              }
+            });
+          }
+          return NextResponse.json(data, {
+            status: 402,
+            headers: response.headers
+          });
+        } catch (error) {
+          console.error("Failed to inject basket into 402 response:", error);
+        }
+      }
+    }
+    return response;
   };
 }
 
@@ -215,7 +240,7 @@ function createSupportedRoute(networks = ["base-sepolia"]) {
 }
 
 // src/routes/discovery.ts
-import { NextResponse } from "next/server";
+import { NextResponse as NextResponse2 } from "next/server";
 import {
   ListDiscoveryResourcesResponseSchema
 } from "x402/types";
@@ -238,10 +263,10 @@ function createDiscoveryRoute() {
       const validatedResponse = ListDiscoveryResourcesResponseSchema.parse(
         mockListDiscoveryResourcesResponse
       );
-      return NextResponse.json(validatedResponse);
+      return NextResponse2.json(validatedResponse);
     } catch (error) {
       console.error("Error in discover/list:", error);
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return NextResponse2.json({ error: "Internal server error" }, { status: 500 });
     }
   }
   return { GET };

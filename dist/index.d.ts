@@ -1,6 +1,6 @@
-import * as next_server from 'next/server';
-import { NextRequest } from 'next/server';
 import { Address } from 'viem';
+import * as next_server from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 export { Network, POST } from 'x402-next';
 export { PaymentPayload, PaymentRequirements, SettleResponse, SupportedPaymentKindsResponse, VerifyResponse } from 'x402/types';
 
@@ -24,11 +24,25 @@ interface FacilitatorConfig {
      */
     supportedNetworks?: string[];
 }
+interface BasketItem {
+    id?: string;
+    name: string;
+    price: string;
+    quantity?: number;
+    tax?: string;
+    discount?: string;
+    metadata?: Record<string, any>;
+}
+type Basket = BasketItem[];
 interface RouteConfig {
     /**
      * Price for accessing this route (e.g., "$0.01")
      */
     price: string;
+    /**
+     * Optional basket of items for this route
+     */
+    basket?: Basket;
     /**
      * Additional configuration for the route
      */
@@ -116,7 +130,7 @@ interface PaymentMiddlewareConfig {
  * );
  * ```
  */
-declare function paymentMiddleware(address: Address, routes: Record<string, RouteConfig | string>, config?: Omit<PaymentMiddlewareConfig, "address" | "routes">): (req: NextRequest) => Promise<next_server.NextResponse<unknown>>;
+declare function paymentMiddleware(address: Address, routes: Record<string, RouteConfig | string>, config?: Omit<PaymentMiddlewareConfig, "address" | "routes">): (req: NextRequest) => Promise<NextResponse<any>>;
 
 interface FacilitatorRouteConfig {
     network?: string;

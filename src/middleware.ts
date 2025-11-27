@@ -1,6 +1,6 @@
 import { Address } from "viem";
 import { paymentMiddleware as x402NextMiddleware, Resource, Network } from "x402-next";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { PaymentMiddlewareConfig, RouteConfig } from "./types";
 
 /**
@@ -89,10 +89,10 @@ export function paymentMiddleware(
   };
 
   // Create the underlying x402-next middleware
-  return (req: NextRequest) => {
+  return async (req: NextRequest) => {
     const facilitatorUrl = getFacilitatorUrl(req);
-    
-    return x402NextMiddleware(
+
+    const response = await x402NextMiddleware(
       address,
       normalizedRoutes as any,
       { url: facilitatorUrl },
@@ -103,5 +103,37 @@ export function paymentMiddleware(
         sessionTokenEndpoint,
       }
     )(req);
+
+    if (response && response.status === 402) {
+      const pathname = req.nextUrl.pathname;
+      const routeConfig = normalizedRoutes[pathname];
+
+      if (routeConfig && routeConfig.basket) {
+        try {
+          const data = await response.json() as any;
+
+          // Inject basket at top level
+          data.basket = routeConfig.basket;
+
+          // Inject basket into extra field of accepts
+          if (data.accepts && Array.isArray(data.accepts)) {
+            data.accepts.forEach((accept: any) => {
+              if (accept.extra) {
+                accept.extra.basket = routeConfig.basket;
+              }
+            });
+          }
+
+          return NextResponse.json(data, {
+            status: 402,
+            headers: response.headers,
+          });
+        } catch (error) {
+          console.error("Failed to inject basket into 402 response:", error);
+        }
+      }
+    }
+
+    return response;
   };
 }
