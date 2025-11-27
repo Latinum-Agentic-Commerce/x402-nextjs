@@ -31,6 +31,7 @@ interface BasketItem {
     quantity?: number;
     tax?: string;
     discount?: string;
+    image_urls?: string[];
     metadata?: Record<string, any>;
 }
 type Basket = BasketItem[];
