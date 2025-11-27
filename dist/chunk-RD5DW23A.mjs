@@ -1,116 +1,31 @@
-"use strict";
 var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
 };
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
-};
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// src/index.ts
-var index_exports = {};
-__export(index_exports, {
-  POST: () => import_x402_next2.POST,
-  createFacilitatorRoutes: () => createFacilitatorRoutes,
-  facilitator: () => facilitator_exports,
-  paymentMiddleware: () => paymentMiddleware
+// src/facilitator.ts
+var facilitator_exports = {};
+__export(facilitator_exports, {
+  GET: () => GET,
+  POST: () => POST
 });
-module.exports = __toCommonJS(index_exports);
-
-// src/middleware.ts
-var import_x402_next = require("x402-next");
-var import_server = require("next/server");
-function paymentMiddleware(address, routes, config) {
-  const {
-    facilitator = {},
-    cdpClientKey,
-    appLogo,
-    appName,
-    sessionTokenEndpoint
-  } = config || {};
-  const {
-    basePath = "/facilitator",
-    network = process.env.NETWORK || "base-sepolia"
-  } = facilitator;
-  const normalizedRoutes = {};
-  for (const [path, routeConfig] of Object.entries(routes)) {
-    if (typeof routeConfig === "string") {
-      normalizedRoutes[path] = {
-        price: routeConfig,
-        network
-      };
-    } else {
-      normalizedRoutes[path] = {
-        ...routeConfig,
-        network: routeConfig.network || network
-      };
-    }
-  }
-  const getFacilitatorUrl = (req) => {
-    const protocol = req.headers.get("x-forwarded-proto") || "http";
-    const host = req.headers.get("host") || "localhost:3000";
-    return `${protocol}://${host}${basePath}`;
-  };
-  return async (req) => {
-    const facilitatorUrl = getFacilitatorUrl(req);
-    const response = await (0, import_x402_next.paymentMiddleware)(
-      address,
-      normalizedRoutes,
-      { url: facilitatorUrl },
-      {
-        cdpClientKey,
-        appLogo,
-        appName,
-        sessionTokenEndpoint
-      }
-    )(req);
-    if (response && response.status === 402) {
-      const pathname = req.nextUrl.pathname;
-      const routeConfig = normalizedRoutes[pathname];
-      if (routeConfig && routeConfig.basket) {
-        try {
-          const data = await response.json();
-          data.basket = routeConfig.basket;
-          if (data.accepts && Array.isArray(data.accepts)) {
-            data.accepts.forEach((accept) => {
-              if (accept.extra) {
-                accept.extra.basket = routeConfig.basket;
-              }
-            });
-          }
-          return import_server.NextResponse.json(data, {
-            status: 402,
-            headers: response.headers
-          });
-        } catch (error) {
-          console.error("Failed to inject basket into 402 response:", error);
-        }
-      }
-    }
-    return response;
-  };
-}
+import { NextResponse as NextResponse2 } from "next/server";
 
 // src/routes/verify.ts
-var import_types = require("x402/types");
-var import_facilitator = require("x402/facilitator");
+import {
+  PaymentPayloadSchema,
+  PaymentRequirementsSchema,
+  evm
+} from "x402/types";
+import { verify } from "x402/facilitator";
 function createVerifyRoute(network = "base-sepolia") {
-  const client = import_types.evm.createConnectedClient(network);
-  async function POST3(req) {
+  const client = evm.createConnectedClient(network);
+  async function POST2(req) {
     const body = await req.json();
     let paymentPayload;
     try {
-      paymentPayload = import_types.PaymentPayloadSchema.parse(body.paymentPayload);
+      paymentPayload = PaymentPayloadSchema.parse(body.paymentPayload);
     } catch (error) {
       console.error("Invalid payment payload:", error);
       const payer = "authorization" in (body.paymentPayload?.payload || {}) ? body.paymentPayload.payload.authorization?.from : "";
@@ -125,7 +40,7 @@ function createVerifyRoute(network = "base-sepolia") {
     }
     let paymentRequirements;
     try {
-      paymentRequirements = import_types.PaymentRequirementsSchema.parse(body.paymentRequirements);
+      paymentRequirements = PaymentRequirementsSchema.parse(body.paymentRequirements);
     } catch (error) {
       console.error("Invalid payment requirements:", error);
       const payer = "authorization" in paymentPayload.payload ? paymentPayload.payload.authorization.from : "";
@@ -139,7 +54,7 @@ function createVerifyRoute(network = "base-sepolia") {
       );
     }
     try {
-      const valid = await (0, import_facilitator.verify)(client, paymentPayload, paymentRequirements);
+      const valid = await verify(client, paymentPayload, paymentRequirements);
       return Response.json(valid);
     } catch (error) {
       console.error("Error verifying payment:", error);
@@ -164,14 +79,18 @@ function createVerifyRoute(network = "base-sepolia") {
       }
     });
   }
-  return { GET: GET2, POST: POST3 };
+  return { GET: GET2, POST: POST2 };
 }
 
 // src/routes/settle.ts
-var import_facilitator2 = require("x402/facilitator");
-var import_types2 = require("x402/types");
+import { settle } from "x402/facilitator";
+import {
+  PaymentPayloadSchema as PaymentPayloadSchema2,
+  PaymentRequirementsSchema as PaymentRequirementsSchema2,
+  evm as evm2
+} from "x402/types";
 function createSettleRoute(network = "base-sepolia", privateKey) {
-  async function POST3(req) {
+  async function POST2(req) {
     const key = privateKey || process.env.PRIVATE_KEY;
     if (!key) {
       return Response.json(
@@ -184,11 +103,11 @@ function createSettleRoute(network = "base-sepolia", privateKey) {
         { status: 500 }
       );
     }
-    const wallet = import_types2.evm.createSigner(network, key);
+    const wallet = evm2.createSigner(network, key);
     const body = await req.json();
     let paymentPayload;
     try {
-      paymentPayload = import_types2.PaymentPayloadSchema.parse(body.paymentPayload);
+      paymentPayload = PaymentPayloadSchema2.parse(body.paymentPayload);
     } catch (error) {
       console.error("Invalid payment payload:", error);
       return Response.json(
@@ -203,7 +122,7 @@ function createSettleRoute(network = "base-sepolia", privateKey) {
     }
     let paymentRequirements;
     try {
-      paymentRequirements = import_types2.PaymentRequirementsSchema.parse(body.paymentRequirements);
+      paymentRequirements = PaymentRequirementsSchema2.parse(body.paymentRequirements);
     } catch (error) {
       console.error("Invalid payment requirements:", error);
       return Response.json(
@@ -217,7 +136,7 @@ function createSettleRoute(network = "base-sepolia", privateKey) {
       );
     }
     try {
-      const response = await (0, import_facilitator2.settle)(wallet, paymentPayload, paymentRequirements);
+      const response = await settle(wallet, paymentPayload, paymentRequirements);
       return Response.json(response);
     } catch (error) {
       console.error("Error settling payment:", error);
@@ -242,7 +161,7 @@ function createSettleRoute(network = "base-sepolia", privateKey) {
       }
     });
   }
-  return { GET: GET2, POST: POST3 };
+  return { GET: GET2, POST: POST2 };
 }
 
 // src/routes/supported.ts
@@ -261,8 +180,10 @@ function createSupportedRoute(networks = ["base-sepolia"]) {
 }
 
 // src/routes/discovery.ts
-var import_server2 = require("next/server");
-var import_types3 = require("x402/types");
+import { NextResponse } from "next/server";
+import {
+  ListDiscoveryResourcesResponseSchema
+} from "x402/types";
 function createDiscoveryRoute() {
   async function GET2(request) {
     try {
@@ -279,13 +200,13 @@ function createDiscoveryRoute() {
           total: 0
         }
       };
-      const validatedResponse = import_types3.ListDiscoveryResourcesResponseSchema.parse(
+      const validatedResponse = ListDiscoveryResourcesResponseSchema.parse(
         mockListDiscoveryResourcesResponse
       );
-      return import_server2.NextResponse.json(validatedResponse);
+      return NextResponse.json(validatedResponse);
     } catch (error) {
       console.error("Error in discover/list:", error);
-      return import_server2.NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
   }
   return { GET: GET2 };
@@ -307,12 +228,6 @@ function createFacilitatorRoutes(config = {}) {
 }
 
 // src/facilitator.ts
-var facilitator_exports = {};
-__export(facilitator_exports, {
-  GET: () => GET,
-  POST: () => POST
-});
-var import_server3 = require("next/server");
 async function GET(req, context) {
   const { x402 } = await context.params;
   const path = x402[0];
@@ -326,7 +241,7 @@ async function GET(req, context) {
   if (path === "settle") return routes.settle.GET();
   if (path === "supported") return routes.supported.GET();
   if (path === "discovery") return routes.discovery.GET(req);
-  return import_server3.NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse2.json({ error: "Not found" }, { status: 404 });
 }
 async function POST(req, context) {
   const { x402 } = await context.params;
@@ -339,15 +254,12 @@ async function POST(req, context) {
   });
   if (path === "verify") return routes.verify.POST(req);
   if (path === "settle") return routes.settle.POST(req);
-  return import_server3.NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse2.json({ error: "Not found" }, { status: 404 });
 }
 
-// src/index.ts
-var import_x402_next2 = require("x402-next");
-// Annotate the CommonJS export names for ESM import in node:
-0 && (module.exports = {
-  POST,
+export {
   createFacilitatorRoutes,
-  facilitator,
-  paymentMiddleware
-});
+  GET,
+  POST,
+  facilitator_exports
+};

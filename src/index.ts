@@ -45,6 +45,7 @@
 
 export { paymentMiddleware } from "./middleware";
 export { createFacilitatorRoutes } from "./routes";
+export * as facilitator from "./facilitator";
 export type {
   FacilitatorConfig,
   RouteConfig,
