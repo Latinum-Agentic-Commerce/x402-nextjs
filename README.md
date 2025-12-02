@@ -39,7 +39,16 @@ export const middleware = paymentMiddleware(
   process.env.WALLET_ADDRESS, // Your wallet address
   {
     "/api/premium": "$0.01",  // Protect routes with pricing
-    "/protected": "$0.05"
+    "/protected": {
+      price: "$0.05",
+      basket: [
+        {
+          name: "Premium Content",
+          price: "$0.05",
+          image_urls: ["https://example.com/image.png"]
+        }
+      ]
+    }
   }
 );
 
@@ -52,31 +61,7 @@ export const config = {
 
 ```typescript
 // app/facilitator/[...x402]/route.ts
-import { createFacilitatorRoutes } from "x402-nextjs";
-
-const routes = createFacilitatorRoutes();
-
-export async function GET(req: Request, { params }: { params: Promise<{ x402: string[] }> }) {
-  const { x402 } = await params;
-  const path = x402[0];
-  
-  if (path === "verify") return routes.verify.GET();
-  if (path === "settle") return routes.settle.GET();
-  if (path === "supported") return routes.supported.GET();
-  if (path === "discovery") return routes.discovery.GET(req as any);
-  
-  return Response.json({ error: "Not found" }, { status: 404 });
-}
-
-export async function POST(req: Request, { params }: { params: Promise<{ x402: string[] }> }) {
-  const { x402 } = await params;
-  const path = x402[0];
-  
-  if (path === "verify") return routes.verify.POST(req);
-  if (path === "settle") return routes.settle.POST(req);
-  
-  return Response.json({ error: "Not found" }, { status: 404 });
-}
+export { GET, POST } from "x402-nextjs/facilitator";
 ```
 
 ### 3. Set Environment Variables
@@ -127,7 +112,14 @@ export const middleware = paymentMiddleware(
       config: {
         description: "Premium API access"
       },
-      network: "base" // Override network per route
+      network: "base", // Override network per route
+      basket: [ // Optional basket for rich checkout experience
+        {
+          name: "Premium API Access",
+          price: "$0.10",
+          quantity: 1
+        }
+      ]
     }
   },
   {
@@ -151,8 +143,17 @@ Creates payment middleware with embedded facilitator.
 
 **Parameters:**
 - `address` - Your wallet address (where payments are sent)
-- `routes` - Object mapping paths to prices or route configs
+- `routes` - Object mapping paths to prices or `RouteConfig` objects
 - `config` - Optional configuration object
+
+### `RouteConfig`
+
+Configuration object for individual routes:
+
+- `price` - Price string (e.g. "$0.01")
+- `basket` - Optional array of items for rich checkout
+- `network` - Override network for this route
+- `config` - Additional metadata
 
 ### `createFacilitatorRoutes(config?)`
 

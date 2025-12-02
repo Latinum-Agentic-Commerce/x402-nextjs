@@ -22,24 +22,7 @@
  * @example
  * ```typescript
  * // app/facilitator/[...x402]/route.ts
- * import { createFacilitatorRoutes } from "x402-nextjs";
- * 
- * const routes = createFacilitatorRoutes();
- * 
- * export async function GET(req: Request, { params }: { params: { x402: string[] } }) {
- *   const path = params.x402[0];
- *   if (path === "verify") return routes.verify.GET(req);
- *   if (path === "settle") return routes.settle.GET(req);
- *   if (path === "supported") return routes.supported.GET();
- *   return Response.json({ error: "Not found" }, { status: 404 });
- * }
- * 
- * export async function POST(req: Request, { params }: { params: { x402: string[] } }) {
- *   const path = params.x402[0];
- *   if (path === "verify") return routes.verify.POST(req);
- *   if (path === "settle") return routes.settle.POST(req);
- *   return Response.json({ error: "Not found" }, { status: 404 });
- * }
+ * export { GET, POST } from "x402-nextjs/facilitator";
  * ```
  */
 
